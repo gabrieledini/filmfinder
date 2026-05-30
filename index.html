@@ -2,13 +2,29 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0a0e0a" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#0a0e0a">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Cineteca: consultazione catalogo film e attori (TMDb), estetica terminale CRT. Installabile come app.">
 <title>CINETECA // ricerca film</title>
 
-<!-- ===== Manifest PWA inline (Base64) ===== -->
-<link id="manifest-link" rel="manifest">
-<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iIzBhMGUwYSIvPjx0ZXh0IHg9Ijk2IiB5PSIxMjUiIGZvbnQtc2l6ZT0iMTEwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNDhmZjk4IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIj7ilrY8L3RleHQ+PC9zdmc+">
+<!-- ===== PWA: manifest + icone ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+<!-- ===== iOS / Safari: installazione + standalone ===== -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cineteca">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+
+<!-- ===== Android Chrome ===== -->
+<meta name="application-name" content="Cineteca">
+<meta name="format-detection" content="telephone=no">
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap');
@@ -126,9 +142,68 @@
   .setup h3{color:var(--amber);font-size:14px;margin-bottom:8px}
   .setup p{font-size:13px;color:var(--phos-dim);margin-bottom:8px}
   .setup a{color:var(--phos)}
-  .setup input{border:1px solid var(--phos-faint);background:var(--bg);padding:9px 10px;margin:6px 0}
-  .setup button{background:var(--phos-faint);border:0;color:var(--phos);font-family:var(--mono);padding:9px 16px;cursor:pointer;font-size:13px}
+  .setup input{border:1px solid var(--phos-faint);background:var(--bg);padding:9px 10px;margin:6px 0;width:100%}
+  .setup button{background:var(--phos-faint);border:0;color:var(--phos);font-family:var(--mono);padding:11px 16px;cursor:pointer;font-size:13px;min-height:44px}
   .clearkey{color:var(--phos-dim);font-size:11px;cursor:pointer;text-decoration:underline;margin-left:8px}
+
+  /* ===== PWA: install banner + update toast ===== */
+  .install-bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:60;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom)) 14px;
+    background:linear-gradient(transparent,var(--bg2) 30%);
+    display:none;
+  }
+  .install-bar.show{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--phos-faint)}
+  .install-bar .msg{flex:1 1 200px;font-size:12px;color:var(--phos-dim);line-height:1.35}
+  .install-bar .msg b{color:var(--phos);text-shadow:0 0 6px var(--phos-dim)}
+  .install-bar button{
+    background:var(--phos-faint);border:1px solid var(--phos-dim);
+    color:var(--phos);font-family:var(--mono);font-size:12px;
+    padding:9px 14px;cursor:pointer;min-height:40px;letter-spacing:.5px;
+  }
+  .install-bar button.ghost{background:transparent;border-color:var(--phos-faint);color:var(--phos-dim)}
+  .install-bar .share{display:inline-block;width:14px;height:14px;vertical-align:-2px}
+
+  .update-toast{
+    position:fixed;left:50%;transform:translateX(-50%);
+    top:calc(8px + env(safe-area-inset-top));z-index:70;
+    background:var(--bg2);border:1px solid var(--amber);color:var(--amber);
+    padding:8px 14px;font-size:12px;display:none;align-items:center;gap:10px;
+    box-shadow:0 0 14px rgba(255,180,84,.18);
+  }
+  .update-toast.show{display:flex}
+  .update-toast button{
+    background:transparent;border:1px solid var(--amber);color:var(--amber);
+    font-family:var(--mono);font-size:11px;padding:5px 10px;cursor:pointer;
+  }
+
+  /* ===== mobile tuning ===== */
+  @media (max-width:480px){
+    body{font-size:14px}
+    h1{font-size:28px}
+    header{padding:12px 12px 8px}
+    main{padding:10px 12px 100px}
+    .searchbar{gap:6px}
+    .field{flex-basis:100%}
+    .toggle{flex:1 1 100%}
+    .toggle button{flex:1;padding:11px 12px;font-size:13px;min-height:42px}
+    input{font-size:16px;padding:12px 0}             /* >=16px evita zoom iOS */
+    .grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+    .card .t{font-size:12px}
+    .clearkey{display:block;margin:6px 0 0 0}
+    .dhead .poster{flex:0 0 140px;max-width:140px}
+    .dinfo h2{font-size:24px}
+    .back{padding:10px 16px;min-height:42px}
+  }
+
+  /* tocco più piacevole */
+  button, .card, .actor, .back{ -webkit-tap-highlight-color:rgba(72,255,152,.15) }
+  .card{touch-action:manipulation}
+
+  /* standalone mode (PWA installata): nascondi qualche fronzolo */
+  @media (display-mode:standalone){
+    .sub::after{content:" · installed";color:var(--phos-dim)}
+  }
 </style>
 </head>
 <body>
@@ -165,6 +240,19 @@
 </main>
 
 <div id="overlay" class="overlay"><div id="detail" class="detail"></div></div>
+
+<!-- ===== PWA: banner installazione ===== -->
+<div id="installBar" class="install-bar" role="dialog" aria-label="Installa Cineteca">
+  <div class="msg" id="installMsg"></div>
+  <button id="installBtn" type="button">► INSTALLA</button>
+  <button id="installDismiss" class="ghost" type="button">×</button>
+</div>
+
+<!-- ===== PWA: nuova versione disponibile ===== -->
+<div id="updateToast" class="update-toast" role="status" aria-live="polite">
+  <span>nuova versione disponibile</span>
+  <button id="updateBtn" type="button">AGGIORNA</button>
+</div>
 </div>
 
 <script>
