@@ -449,44 +449,102 @@ $("mActor").onclick=()=>{mode="actor";$("mActor").classList.add("on");$("mFilm")
 
 $("q").addEventListener("input",e=>{clearTimeout(debounce);debounce=setTimeout(()=>search(e.target.value),350);});
 
-/* ---------- PWA: manifest + service worker inline ---------- */
+/* ---------- PWA: registrazione service worker + install/update UX ---------- */
 (function(){
-  const icon="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzBhMGUwYSIvPjx0ZXh0IHg9IjI1NiIgeT0iMzQwIiBmb250LXNpemU9IjMwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzQ4ZmY5OCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSI+4pa2PC90ZXh0Pjwvc3ZnPg==";
-  const manifest={
-    name:"Cineteca",short_name:"Cineteca",
-    description:"Consultazione catalogo film",
-    start_url:".",display:"standalone",orientation:"portrait",
-    background_color:"#0a0e0a",theme_color:"#0a0e0a",
-    icons:[
-      {src:icon,sizes:"192x192",type:"image/svg+xml",purpose:"any"},
-      {src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}
-    ]
-  };
-  const blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
-  $("manifest-link").href=URL.createObjectURL(blob);
+  if (!("serviceWorker" in navigator)) return;
 
-  if("serviceWorker" in navigator){
-    const sw=`
-      const C="cineteca-v1";
-      self.addEventListener("install",e=>{self.skipWaiting();});
-      self.addEventListener("activate",e=>{e.waitUntil(self.clients.claim());});
-      self.addEventListener("fetch",e=>{
-        const u=new URL(e.request.url);
-        // non cacheare le chiamate API (dati sempre freschi)
-        if(u.hostname.includes("themoviedb.org")) return;
-        e.respondWith(
-          caches.open(C).then(async c=>{
-            const hit=await c.match(e.request);
-            if(hit) return hit;
-            try{const res=await fetch(e.request);
-              if(e.request.method==="GET"&&res.ok) c.put(e.request,res.clone());
-              return res;
-            }catch(err){return hit||Response.error();}
-          })
-        );
-      });`;
-    const swUrl=URL.createObjectURL(new Blob([sw],{type:"text/javascript"}));
-    navigator.serviceWorker.register(swUrl).catch(()=>{});
+  const installBar = $("installBar");
+  const installMsg = $("installMsg");
+  const installBtn = $("installBtn");
+  const installDismiss = $("installDismiss");
+  const updateToast = $("updateToast");
+  const updateBtn   = $("updateBtn");
+
+  const DISMISS_LS = "cineteca_install_dismissed";
+  const isStandalone = () =>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+
+  /* registra il SW (path relativo per girare anche su sotto-cartelle / GH Pages) */
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return; refreshing = true; location.reload();
+  });
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js", { scope: "./" }).then(reg => {
+      // controllo aggiornamenti ogni 60min e al focus tab
+      const checkUpdate = () => reg.update().catch(()=>{});
+      setInterval(checkUpdate, 60 * 60 * 1000);
+      window.addEventListener("focus", checkUpdate);
+
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) {
+            // c'è una nuova versione pronta
+            updateToast.classList.add("show");
+            updateBtn.onclick = () => nw.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      });
+    }).catch(err => console.warn("SW register failed:", err));
+  });
+
+  /* ---------- Install prompt (Android Chrome / Edge / Samsung Internet) ---------- */
+  let deferredPrompt = null;
+
+  function dismissed() {
+    return localStorage.getItem(DISMISS_LS) === "1";
+  }
+  function showAndroidInstall() {
+    installMsg.innerHTML =
+      '<b>Installa Cineteca</b><br>aggiungi alla schermata Home per un\'esperienza full-screen, offline-ready.';
+    installBtn.style.display = "";
+    installBar.classList.add("show");
+  }
+  function showIOSInstall() {
+    installMsg.innerHTML =
+      '<b>Installa su iPhone/iPad</b><br>tocca <span class="share">' +
+      // SVG icona "condividi" iOS
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M12 16V4"/><path d="M8 8l4-4 4 4"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>' +
+      '</span> e poi <b>"Aggiungi a Home"</b>.';
+    installBtn.style.display = "none";
+    installBar.classList.add("show");
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone() && !dismissed()) showAndroidInstall();
+  });
+
+  installBtn.onclick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch {}
+    deferredPrompt = null;
+    installBar.classList.remove("show");
+  };
+
+  installDismiss.onclick = () => {
+    localStorage.setItem(DISMISS_LS, "1");
+    installBar.classList.remove("show");
+  };
+
+  window.addEventListener("appinstalled", () => {
+    installBar.classList.remove("show");
+    deferredPrompt = null;
+  });
+
+  /* iOS: nessun beforeinstallprompt, mostriamo l'hint manuale */
+  if (isIOS && !isStandalone() && !dismissed()) {
+    // attendi un attimo per non sovrapporsi al setup iniziale della chiave
+    setTimeout(() => { if (!isStandalone()) showIOSInstall(); }, 1500);
   }
 })();
 
