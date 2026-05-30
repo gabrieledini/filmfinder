@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e0a">
+<title>CINETECA // ricerca film</title>
+
+<!-- ===== Manifest PWA inline (Base64) ===== -->
+<link id="manifest-link" rel="manifest">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iIzBhMGUwYSIvPjx0ZXh0IHg9Ijk2IiB5PSIxMjUiIGZvbnQtc2l6ZT0iMTEwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNDhmZjk4IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIj7ilrY8L3RleHQ+PC9zdmc+">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root{
+    --bg:#0a0e0a;
+    --bg2:#0d140d;
+    --phos:#48ff98;
+    --phos-dim:#2a8a56;
+    --phos-faint:#163d27;
+    --amber:#ffb454;
+    --red:#ff5f56;
+    --mono:'IBM Plex Mono',monospace;
+    --crt:'VT323',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--phos);
+    font-family:var(--mono);
+    font-size:15px;
+    line-height:1.45;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    overflow-x:hidden;
+  }
+  /* scanline + flicker CRT overlay */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.28) 3px,rgba(0,0,0,0) 4px);
+    mix-blend-mode:multiply;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%);
+  }
+  @keyframes flick{0%,100%{opacity:1}97%{opacity:1}97.5%{opacity:.85}98%{opacity:1}}
+  #app{animation:flick 6s infinite}
+
+  header{
+    padding:18px 16px 10px;
+    border-bottom:1px solid var(--phos-faint);
+    position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);
+    z-index:10;
+  }
+  h1{
+    font-family:var(--crt);font-size:34px;letter-spacing:2px;
+    text-shadow:0 0 8px var(--phos-dim);font-weight:400;
+  }
+  h1 .cursor{animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .sub{font-size:12px;color:var(--phos-dim);margin-top:2px}
+
+  .searchbar{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .field{flex:1 1 200px;display:flex;align-items:center;border:1px solid var(--phos-faint);background:var(--bg2);padding:0 10px}
+  .field .ps{color:var(--phos-dim);margin-right:6px}
+  input{
+    background:transparent;border:0;outline:0;color:var(--phos);
+    font-family:var(--mono);font-size:15px;width:100%;padding:11px 0;
+    caret-color:var(--phos);
+  }
+  input::placeholder{color:var(--phos-dim)}
+  .toggle{display:flex;border:1px solid var(--phos-faint)}
+  .toggle button{
+    background:transparent;border:0;color:var(--phos-dim);
+    font-family:var(--mono);font-size:13px;padding:0 12px;cursor:pointer;
+  }
+  .toggle button.on{background:var(--phos-faint);color:var(--phos);text-shadow:0 0 6px var(--phos-dim)}
+
+  main{padding:14px 16px 60px;max-width:1100px;margin:0 auto}
+  .status{color:var(--phos-dim);font-size:13px;padding:8px 0}
+  .status .err{color:var(--red)}
+
+  /* griglia risultati */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-top:8px}
+  .card{
+    border:1px solid var(--phos-faint);background:var(--bg2);cursor:pointer;
+    display:flex;flex-direction:column;transition:.15s;
+  }
+  .card:hover{border-color:var(--phos-dim);box-shadow:0 0 14px rgba(72,255,152,.12)}
+  .card .poster{aspect-ratio:2/3;background:#060906 center/cover no-repeat;border-bottom:1px solid var(--phos-faint);position:relative}
+  .card .noimg{display:flex;align-items:center;justify-content:center;height:100%;color:var(--phos-dim);font-size:11px;text-align:center;padding:6px}
+  .card .meta{padding:7px 8px}
+  .card .t{font-size:12px;font-weight:600;line-height:1.25;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card .y{font-size:11px;color:var(--amber);margin-top:3px}
+
+  /* dettaglio */
+  .overlay{position:fixed;inset:0;background:rgba(4,7,4,.92);z-index:50;overflow-y:auto;display:none}
+  .overlay.open{display:block}
+  .detail{max-width:880px;margin:0 auto;padding:18px 16px 70px}
+  .back{background:transparent;border:1px solid var(--phos-faint);color:var(--phos);
+    font-family:var(--mono);padding:7px 14px;cursor:pointer;font-size:13px;margin-bottom:16px}
+  .back:hover{background:var(--phos-faint)}
+  .dhead{display:flex;gap:18px;flex-wrap:wrap}
+  .dhead .poster{flex:0 0 200px;max-width:200px;border:1px solid var(--phos-faint);aspect-ratio:2/3;background:#060906 center/cover}
+  .dinfo{flex:1 1 280px;min-width:240px}
+  .dinfo h2{font-family:var(--crt);font-size:30px;font-weight:400;line-height:1.05;text-shadow:0 0 8px var(--phos-dim)}
+  .dinfo .orig{color:var(--phos-dim);font-size:13px;margin:2px 0 12px}
+  .row{display:flex;gap:10px;font-size:13px;margin:5px 0}
+  .row .k{color:var(--phos-dim);flex:0 0 78px}
+  .row .v{color:var(--phos)}
+  .row .v.reg{color:var(--amber)}
+  .section-t{margin:22px 0 8px;color:var(--phos-dim);font-size:12px;letter-spacing:1px;border-bottom:1px dashed var(--phos-faint);padding-bottom:4px}
+  .plot{font-size:14px;line-height:1.55}
+  .cast{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin-top:6px}
+  .actor{text-align:center;cursor:pointer}
+  .actor .ph{aspect-ratio:2/3;background:#060906 center/cover;border:1px solid var(--phos-faint);margin-bottom:5px}
+  .actor .ph .noimg{font-size:24px}
+  .actor .an{font-size:11px;font-weight:600;line-height:1.2}
+  .actor .ac{font-size:10px;color:var(--phos-dim);line-height:1.2;margin-top:2px}
+
+  /* setup api key */
+  .setup{border:1px solid var(--amber);background:var(--bg2);padding:16px;margin-top:14px}
+  .setup h3{color:var(--amber);font-size:14px;margin-bottom:8px}
+  .setup p{font-size:13px;color:var(--phos-dim);margin-bottom:8px}
+  .setup a{color:var(--phos)}
+  .setup input{border:1px solid var(--phos-faint);background:var(--bg);padding:9px 10px;margin:6px 0}
+  .setup button{background:var(--phos-faint);border:0;color:var(--phos);font-family:var(--mono);padding:9px 16px;cursor:pointer;font-size:13px}
+  .clearkey{color:var(--phos-dim);font-size:11px;cursor:pointer;text-decoration:underline;margin-left:8px}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <h1>CINETECA<span class="cursor">_</span></h1>
+  <div class="sub">consultazione catalogo // fonte dati: TMDb</div>
+
+  <div id="setup" class="setup" style="display:none">
+    <h3>► configurazione iniziale</h3>
+    <p>Serve una API key TMDb (gratuita). Registrati su
+       <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>,
+       copia la chiave "API Key (v3 auth)" e incollala qui. Resta salvata solo sul tuo dispositivo.</p>
+    <input id="keyInput" type="text" placeholder="incolla la tua API key v3 qui...">
+    <div><button id="saveKey">SALVA E AVVIA</button></div>
+  </div>
+
+  <div id="bar" class="searchbar" style="display:none">
+    <div class="field">
+      <span class="ps">&gt;</span>
+      <input id="q" type="search" placeholder="cerca..." autocomplete="off">
+    </div>
+    <div class="toggle">
+      <button id="mFilm" class="on">TITOLO</button>
+      <button id="mActor">ATTORE</button>
+    </div>
+    <span id="clearKey" class="clearkey" title="rimuovi API key">[reset key]</span>
+  </div>
+</header>
+
+<main>
+  <div id="status" class="status"></div>
+  <div id="grid" class="grid"></div>
+</main>
+
+<div id="overlay" class="overlay"><div id="detail" class="detail"></div></div>
+</div>
+
+<script>
+const IMG="https://image.tmdb.org/t/p/";
+const KEY_LS="tmdb_key";
+let apiKey=localStorage.getItem(KEY_LS)||"";
+let mode="film";          // 'film' | 'actor'
+let debounce=null;
+
+const $=id=>document.getElementById(id);
+const setup=$("setup"),bar=$("bar"),status=$("status"),grid=$("grid"),
+      overlay=$("overlay"),detail=$("detail");
+
+/* ---------- API ---------- */
+async function api(path,params={}){
+  const u=new URL("https://api.themoviedb.org/3/"+path);
+  u.searchParams.set("api_key",apiKey);
+  u.searchParams.set("language","it-IT");
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
+  const r=await fetch(u);
+  if(!r.ok) throw new Error("HTTP "+r.status+(r.status===401?" — API key non valida":""));
+  return r.json();
+}
+
+/* ---------- ricerca ---------- */
+async function search(term){
+  term=term.trim();
+  grid.innerHTML="";
+  if(!term){status.textContent="";return;}
+  status.innerHTML="ricerca in corso...";
+  try{
+    if(mode==="film"){
+      const d=await api("search/movie",{query:term,include_adult:false});
+      renderFilms(d.results||[]);
+    }else{
+      const d=await api("search/person",{query:term,include_adult:false});
+      renderActors(d.results||[]);
+    }
+  }catch(e){
+    status.innerHTML='<span class="err">errore: '+e.message+'</span>';
+  }
+}
+
+function renderFilms(list){
+  if(!list.length){status.textContent="nessun risultato.";return;}
+  status.textContent=list.length+" risultati";
+  grid.innerHTML="";
+  list.forEach(m=>{
+    const yr=m.release_date?m.release_date.slice(0,4):"—";
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`
+      <div class="poster" ${m.poster_path?`style="background-image:url(${IMG}w342${m.poster_path})"`:""}>
+        ${m.poster_path?"":'<div class="noimg">[ no locandina ]</div>'}
+      </div>
+      <div class="meta"><div class="t">${esc(m.title)}</div><div class="y">${yr}</div></div>`;
+    card.onclick=()=>openFilm(m.id);
+    grid.appendChild(card);
+  });
+}
+
+function renderActors(list){
+  list=list.filter(p=>p.known_for_department==="Acting");
+  if(!list.length){status.textContent="nessun attore trovato.";return;}
+  status.textContent=list.length+" persone — tocca per vedere la filmografia";
+  grid.innerHTML="";
+  list.forEach(p=>{
+    const known=(p.known_for||[]).map(k=>k.title||k.name).filter(Boolean).slice(0,2).join(", ");
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`
+      <div class="poster" ${p.profile_path?`style="background-image:url(${IMG}w342${p.profile_path})"`:""}>
+        ${p.profile_path?"":'<div class="noimg">[ no foto ]</div>'}
+      </div>
+      <div class="meta"><div class="t">${esc(p.name)}</div><div class="y">${esc(known||"attore/attrice")}</div></div>`;
+    card.onclick=()=>openActor(p.id,p.name);
+    grid.appendChild(card);
+  });
+}
+
+/* ---------- dettaglio film ---------- */
+async function openFilm(id){
+  showOverlay('<div class="status">caricamento scheda...</div>');
+  try{
+    const m=await api("movie/"+id,{append_to_response:"credits"});
+    const yr=m.release_date?m.release_date.slice(0,4):"—";
+    const reg=(m.credits.crew||[]).filter(c=>c.job==="Director").map(c=>c.name).join(", ")||"—";
+    const cast=(m.credits.cast||[]).slice(0,10);
+    let plot=m.overview;
+    if(!plot){ // fallback inglese se la trama IT manca
+      try{const en=await apiLang("movie/"+id,"en-US");plot=en.overview;}catch{}
+    }
+    detail.innerHTML=`
+      <button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
+      <div class="dhead">
+        <div class="poster" ${m.poster_path?`style="background-image:url(${IMG}w500${m.poster_path})"`:""}></div>
+        <div class="dinfo">
+          <h2>${esc(m.title)}</h2>
+          ${m.original_title&&m.original_title!==m.title?`<div class="orig">tit. orig.: ${esc(m.original_title)}</div>`:'<div class="orig"></div>'}
+          <div class="row"><span class="k">anno</span><span class="v">${yr}</span></div>
+          <div class="row"><span class="k">regia</span><span class="v reg">${esc(reg)}</span></div>
+          ${m.runtime?`<div class="row"><span class="k">durata</span><span class="v">${m.runtime} min</span></div>`:""}
+          ${m.genres&&m.genres.length?`<div class="row"><span class="k">genere</span><span class="v">${m.genres.map(g=>esc(g.name)).join(", ")}</span></div>`:""}
+          ${m.vote_average?`<div class="row"><span class="k">voto</span><span class="v">${m.vote_average.toFixed(1)}/10</span></div>`:""}
+        </div>
+      </div>
+      <div class="section-t">// TRAMA</div>
+      <div class="plot">${esc(plot||"Trama non disponibile.")}</div>
+      <div class="section-t">// CAST PRINCIPALE</div>
+      <div class="cast">${cast.map(a=>`
+        <div class="actor" onclick="openActor(${a.id},'${escAttr(a.name)}')">
+          <div class="ph" ${a.profile_path?`style="background-image:url(${IMG}w185${a.profile_path})"`:""}>
+            ${a.profile_path?"":'<div class="noimg">☻</div>'}
+          </div>
+          <div class="an">${esc(a.name)}</div>
+          <div class="ac">${esc(a.character||"")}</div>
+        </div>`).join("")||"—"}</div>`;
+  }catch(e){
+    detail.innerHTML=`<button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
+      <div class="status"><span class="err">errore: ${e.message}</span></div>`;
+  }
+}
+
+/* ---------- dettaglio attore (filmografia) ---------- */
+async function openActor(id,name){
+  showOverlay('<div class="status">caricamento filmografia...</div>');
+  try{
+    const p=await api("person/"+id,{append_to_response:"movie_credits"});
+    const films=(p.movie_credits.cast||[])
+      .filter(f=>f.poster_path||f.release_date)
+      .sort((a,b)=>(b.release_date||"").localeCompare(a.release_date||""));
+    detail.innerHTML=`
+      <button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
+      <div class="dhead">
+        <div class="poster" ${p.profile_path?`style="background-image:url(${IMG}w500${p.profile_path})"`:""}></div>
+        <div class="dinfo">
+          <h2>${esc(p.name||name)}</h2>
+          <div class="orig"></div>
+          ${p.birthday?`<div class="row"><span class="k">nato/a</span><span class="v">${p.birthday}${p.place_of_birth?" · "+esc(p.place_of_birth):""}</span></div>`:""}
+          <div class="row"><span class="k">film</span><span class="v">${films.length}</span></div>
+          ${p.biography?`<div class="section-t">// BIOGRAFIA</div><div class="plot">${esc(p.biography.slice(0,600))}${p.biography.length>600?"…":""}</div>`:""}
+        </div>
+      </div>
+      <div class="section-t">// FILMOGRAFIA</div>
+      <div class="grid">${films.map(f=>{
+        const yr=f.release_date?f.release_date.slice(0,4):"—";
+        return `<div class="card" onclick="openFilm(${f.id})">
+          <div class="poster" ${f.poster_path?`style="background-image:url(${IMG}w342${f.poster_path})"`:""}>
+            ${f.poster_path?"":'<div class="noimg">[ no locandina ]</div>'}
+          </div>
+          <div class="meta"><div class="t">${esc(f.title)}</div><div class="y">${yr}</div></div>
+        </div>`;}).join("")}</div>`;
+  }catch(e){
+    detail.innerHTML=`<button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
+      <div class="status"><span class="err">errore: ${e.message}</span></div>`;
+  }
+}
+
+async function apiLang(path,lang){
+  const u=new URL("https://api.themoviedb.org/3/"+path);
+  u.searchParams.set("api_key",apiKey);
+  u.searchParams.set("language",lang);
+  const r=await fetch(u);return r.json();
+}
+
+/* ---------- overlay helpers ---------- */
+function showOverlay(html){detail.innerHTML=html;overlay.classList.add("open");overlay.scrollTop=0;}
+function closeOverlay(){overlay.classList.remove("open");}
+window.openFilm=openFilm;window.openActor=openActor;window.closeOverlay=closeOverlay;
+
+/* ---------- util ---------- */
+function esc(s){return(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function escAttr(s){return esc(s).replace(/'/g,"\\&#39;");}
+
+/* ---------- setup / chiave ---------- */
+function showApp(){setup.style.display="none";bar.style.display="flex";$("q").focus();}
+function showSetup(){setup.style.display="block";bar.style.display="none";}
+
+$("saveKey").onclick=()=>{
+  const k=$("keyInput").value.trim();
+  if(!k){return;}
+  apiKey=k;localStorage.setItem(KEY_LS,k);showApp();
+};
+$("clearKey").onclick=()=>{
+  localStorage.removeItem(KEY_LS);apiKey="";grid.innerHTML="";status.textContent="";
+  $("q").value="";showSetup();
+};
+
+/* mode toggle */
+$("mFilm").onclick=()=>{mode="film";$("mFilm").classList.add("on");$("mActor").classList.remove("on");
+  $("q").placeholder="cerca per titolo (IT o EN)...";if($("q").value)search($("q").value);};
+$("mActor").onclick=()=>{mode="actor";$("mActor").classList.add("on");$("mFilm").classList.remove("on");
+  $("q").placeholder="cerca per nome attore...";if($("q").value)search($("q").value);};
+
+$("q").addEventListener("input",e=>{clearTimeout(debounce);debounce=setTimeout(()=>search(e.target.value),350);});
+
+/* ---------- PWA: manifest + service worker inline ---------- */
+(function(){
+  const icon="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzBhMGUwYSIvPjx0ZXh0IHg9IjI1NiIgeT0iMzQwIiBmb250LXNpemU9IjMwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzQ4ZmY5OCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSI+4pa2PC90ZXh0Pjwvc3ZnPg==";
+  const manifest={
+    name:"Cineteca",short_name:"Cineteca",
+    description:"Consultazione catalogo film",
+    start_url:".",display:"standalone",orientation:"portrait",
+    background_color:"#0a0e0a",theme_color:"#0a0e0a",
+    icons:[
+      {src:icon,sizes:"192x192",type:"image/svg+xml",purpose:"any"},
+      {src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}
+    ]
+  };
+  const blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+  $("manifest-link").href=URL.createObjectURL(blob);
+
+  if("serviceWorker" in navigator){
+    const sw=`
+      const C="cineteca-v1";
+      self.addEventListener("install",e=>{self.skipWaiting();});
+      self.addEventListener("activate",e=>{e.waitUntil(self.clients.claim());});
+      self.addEventListener("fetch",e=>{
+        const u=new URL(e.request.url);
+        // non cacheare le chiamate API (dati sempre freschi)
+        if(u.hostname.includes("themoviedb.org")) return;
+        e.respondWith(
+          caches.open(C).then(async c=>{
+            const hit=await c.match(e.request);
+            if(hit) return hit;
+            try{const res=await fetch(e.request);
+              if(e.request.method==="GET"&&res.ok) c.put(e.request,res.clone());
+              return res;
+            }catch(err){return hit||Response.error();}
+          })
+        );
+      });`;
+    const swUrl=URL.createObjectURL(new Blob([sw],{type:"text/javascript"}));
+    navigator.serviceWorker.register(swUrl).catch(()=>{});
+  }
+})();
+
+/* ---------- start ---------- */
+overlay.addEventListener("click",e=>{if(e.target===overlay)closeOverlay();});
+if(apiKey) showApp(); else showSetup();
+</script>
+</body>
+</html>
