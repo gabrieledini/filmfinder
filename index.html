@@ -2,12 +2,12 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#0a0e0a" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#0a0e0a">
-<meta name="color-scheme" content="dark">
-<meta name="description" content="Cineteca: consultazione catalogo film e attori (TMDb), estetica terminale CRT. Installabile come app.">
-<title>CINETECA // ricerca film</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#EDEFF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121419" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Cineteca: cerca film e attori, trame, cast e filmografie (dati TMDb). Installabile come app.">
+<title>Cineteca</title>
 
 <!-- ===== PWA: manifest + icone ===== -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -17,241 +17,396 @@
 <!-- ===== iOS / Safari: installazione + standalone ===== -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cineteca">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
 <!-- ===== Android Chrome ===== -->
 <meta name="application-name" content="Cineteca">
 <meta name="format-detection" content="telephone=no">
 
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap');
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 
+<style>
   :root{
-    --bg:#0a0e0a;
-    --bg2:#0d140d;
-    --phos:#48ff98;
-    --phos-dim:#2a8a56;
-    --phos-faint:#163d27;
-    --amber:#ffb454;
-    --red:#ff5f56;
-    --mono:'IBM Plex Mono',monospace;
-    --crt:'VT323',monospace;
+    --bg:#EDEFF3;
+    --surface:#FFFFFF;
+    --surface-2:#E2E5EB;
+    --ink:#1A1D26;
+    --muted:#5D6372;
+    --line:#D3D7DF;
+    --accent:#2F45D8;
+    --accent-ink:#FFFFFF;
+    --accent-soft:#DEE3FF;
+    --gold:#B07A00;
+    --danger:#C42B3A;
+    --shadow:0 1px 2px rgba(26,29,38,.08),0 8px 24px rgba(26,29,38,.10);
+    --display:'Bricolage Grotesque',system-ui,sans-serif;
+    --text:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --r-poster:10px;
+    --r-control:999px;
+    --r-sheet:20px;
   }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#121419;
+      --surface:#1B1E26;
+      --surface-2:#262A34;
+      --ink:#ECEEF3;
+      --muted:#9AA0AD;
+      --line:#2D313C;
+      --accent:#8E9CFF;
+      --accent-ink:#0E1330;
+      --accent-soft:#252C55;
+      --gold:#F2B226;
+      --danger:#FF7A86;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
+    }
+  }
+
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html{-webkit-text-size-adjust:100%}
   body{
     background:var(--bg);
-    color:var(--phos);
-    font-family:var(--mono);
-    font-size:15px;
-    line-height:1.45;
+    color:var(--ink);
+    font-family:var(--text);
+    font-size:16px;
+    line-height:1.5;
     padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
     overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
   }
-  /* scanline + flicker CRT overlay */
-  body::before{
-    content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
-    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.28) 3px,rgba(0,0,0,0) 4px);
-    mix-blend-mode:multiply;
-  }
-  body::after{
-    content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
-    background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%);
-  }
-  @keyframes flick{0%,100%{opacity:1}97%{opacity:1}97.5%{opacity:.85}98%{opacity:1}}
-  #app{animation:flick 6s infinite}
+  body.locked{overflow:hidden}
+  button{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 
+  /* ===== header ===== */
   header{
-    padding:18px 16px 10px;
-    border-bottom:1px solid var(--phos-faint);
-    position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);
-    z-index:10;
+    position:sticky;top:0;z-index:10;
+    background:color-mix(in srgb,var(--bg) 86%,transparent);
+    backdrop-filter:saturate(1.4) blur(14px);
+    -webkit-backdrop-filter:saturate(1.4) blur(14px);
+    border-bottom:1px solid transparent;
+    transition:border-color .2s;
   }
+  header.scrolled{border-bottom-color:var(--line)}
+  .hwrap{max-width:1180px;margin:0 auto;padding:18px 20px 14px}
+  .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
   h1{
-    font-family:var(--crt);font-size:34px;letter-spacing:2px;
-    text-shadow:0 0 8px var(--phos-dim);font-weight:400;
+    font-family:var(--display);font-weight:800;
+    font-size:clamp(28px,4.2vw,40px);letter-spacing:-.03em;line-height:1;
   }
-  h1 .cursor{animation:blink 1s steps(1) infinite}
-  @keyframes blink{50%{opacity:0}}
-  .sub{font-size:12px;color:var(--phos-dim);margin-top:2px}
+  .sub{font-size:13px;color:var(--muted)}
 
-  .searchbar{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-  .field{flex:1 1 200px;display:flex;align-items:center;border:1px solid var(--phos-faint);background:var(--bg2);padding:0 10px}
-  .field .ps{color:var(--phos-dim);margin-right:6px}
+  .searchbar{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap}
+  .field{
+    flex:1 1 280px;display:flex;align-items:center;gap:10px;
+    background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r-control);padding:0 18px;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  .field:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .field svg{flex:0 0 18px;color:var(--muted)}
   input{
-    background:transparent;border:0;outline:0;color:var(--phos);
-    font-family:var(--mono);font-size:15px;width:100%;padding:11px 0;
-    caret-color:var(--phos);
+    background:transparent;border:0;outline:0;color:var(--ink);
+    font-family:var(--text);font-size:16px;width:100%;padding:13px 0;
   }
-  input::placeholder{color:var(--phos-dim)}
-  .toggle{display:flex;border:1px solid var(--phos-faint)}
+  input::placeholder{color:var(--muted)}
+  input[type=search]::-webkit-search-cancel-button{cursor:pointer}
+
+  .toggle{
+    display:flex;background:var(--surface-2);border-radius:var(--r-control);padding:4px;
+  }
   .toggle button{
-    background:transparent;border:0;color:var(--phos-dim);
-    font-family:var(--mono);font-size:13px;padding:0 12px;cursor:pointer;
+    background:transparent;border:0;color:var(--muted);font-weight:600;font-size:14px;
+    padding:9px 18px;border-radius:var(--r-control);cursor:pointer;min-height:40px;
+    transition:background .15s,color .15s;
   }
-  .toggle button.on{background:var(--phos-faint);color:var(--phos);text-shadow:0 0 6px var(--phos-dim)}
+  .toggle button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 
-  main{padding:14px 16px 60px;max-width:1100px;margin:0 auto}
-  .status{color:var(--phos-dim);font-size:13px;padding:8px 0}
-  .status .err{color:var(--red)}
+  .clearkey{
+    background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;
+    text-decoration:underline;text-underline-offset:3px;padding:6px 4px;
+  }
+  .clearkey:hover{color:var(--ink)}
 
-  /* griglia risultati */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-top:8px}
+  /* ===== setup chiave ===== */
+  .setup{
+    max-width:560px;margin:28px auto 0;background:var(--surface);
+    border-radius:var(--r-sheet);padding:28px;box-shadow:var(--shadow);
+  }
+  .setup h2{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+  .setup p{color:var(--muted);margin-bottom:16px}
+  .setup a{color:var(--accent);font-weight:600}
+  .setup label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+  .setup input{
+    border:1px solid var(--line);background:var(--bg);border-radius:12px;
+    padding:12px 14px;margin-bottom:16px;
+  }
+  .setup input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--accent);color:var(--accent-ink);border:0;
+    border-radius:var(--r-control);padding:12px 22px;font-weight:600;font-size:15px;
+    cursor:pointer;min-height:46px;transition:filter .15s,transform .1s;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:transparent;color:var(--muted)}
+
+  /* ===== risultati ===== */
+  main{max-width:1180px;margin:0 auto;padding:8px 20px 80px}
+  .status{color:var(--muted);font-size:14px;padding:10px 0 4px;min-height:1.5em}
+  .status .err{color:var(--danger);font-weight:500}
+  .heading{
+    font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:-.02em;
+    margin:8px 0 4px;
+  }
+
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:28px 18px;margin-top:12px;
+  }
   .card{
-    border:1px solid var(--phos-faint);background:var(--bg2);cursor:pointer;
-    display:flex;flex-direction:column;transition:.15s;
+    display:flex;flex-direction:column;gap:10px;text-align:left;
+    background:none;border:0;padding:0;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
   }
-  .card:hover{border-color:var(--phos-dim);box-shadow:0 0 14px rgba(72,255,152,.12)}
-  .card .poster{aspect-ratio:2/3;background:#060906 center/cover no-repeat;border-bottom:1px solid var(--phos-faint);position:relative}
-  .card .noimg{display:flex;align-items:center;justify-content:center;height:100%;color:var(--phos-dim);font-size:11px;text-align:center;padding:6px}
-  .card .meta{padding:7px 8px}
-  .card .t{font-size:12px;font-weight:600;line-height:1.25;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .card .y{font-size:11px;color:var(--amber);margin-top:3px}
+  .poster{
+    position:relative;aspect-ratio:2/3;border-radius:var(--r-poster);overflow:hidden;
+    background:var(--surface-2) center/cover no-repeat;
+    box-shadow:0 1px 2px rgba(0,0,0,.08);
+    transition:transform .2s ease,box-shadow .2s ease;
+  }
+  .card:hover .poster,.card:focus-visible .poster{transform:translateY(-4px);box-shadow:var(--shadow)}
+  .card:focus-visible{outline:none}
+  .card:focus-visible .poster{outline:2px solid var(--accent);outline-offset:3px}
+  .noimg{
+    display:flex;align-items:center;justify-content:center;height:100%;
+    padding:14px;text-align:center;color:var(--muted);
+    font-family:var(--display);font-weight:700;font-size:15px;line-height:1.2;
+  }
+  .badge{
+    position:absolute;top:8px;left:8px;
+    background:rgba(18,20,25,.78);color:#fff;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    font-size:12px;font-weight:600;padding:3px 8px;border-radius:999px;
+    display:flex;align-items:center;gap:4px;
+  }
+  .badge svg{color:#F2B226}
+  .card .t{
+    font-weight:600;font-size:15px;line-height:1.3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .card .y{font-size:13px;color:var(--muted);margin-top:2px;
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 
-  /* dettaglio */
-  .overlay{position:fixed;inset:0;background:rgba(4,7,4,.92);z-index:50;overflow-y:auto;display:none}
+  /* skeleton */
+  .sk .poster{animation:pulse 1.2s ease-in-out infinite}
+  .sk .line{height:12px;border-radius:6px;background:var(--surface-2);width:80%;animation:pulse 1.2s ease-in-out infinite}
+  .sk .line.short{width:40%;margin-top:6px}
+  @keyframes pulse{50%{opacity:.55}}
+
+  /* ===== scheda dettaglio ===== */
+  .overlay{
+    position:fixed;inset:0;z-index:50;display:none;overflow-y:auto;
+    background:rgba(10,12,18,.55);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    overscroll-behavior:contain;
+  }
   .overlay.open{display:block}
-  .detail{max-width:880px;margin:0 auto;padding:18px 16px 70px}
-  .back{background:transparent;border:1px solid var(--phos-faint);color:var(--phos);
-    font-family:var(--mono);padding:7px 14px;cursor:pointer;font-size:13px;margin-bottom:16px}
-  .back:hover{background:var(--phos-faint)}
-  .dhead{display:flex;gap:18px;flex-wrap:wrap}
-  .dhead .poster{flex:0 0 200px;max-width:200px;border:1px solid var(--phos-faint);aspect-ratio:2/3;background:#060906 center/cover}
-  .dinfo{flex:1 1 280px;min-width:240px}
-  .dinfo h2{font-family:var(--crt);font-size:30px;font-weight:400;line-height:1.05;text-shadow:0 0 8px var(--phos-dim)}
-  .dinfo .orig{color:var(--phos-dim);font-size:13px;margin:2px 0 12px}
-  .row{display:flex;gap:10px;font-size:13px;margin:5px 0}
-  .row .k{color:var(--phos-dim);flex:0 0 78px}
-  .row .v{color:var(--phos)}
-  .row .v.reg{color:var(--amber)}
-  .section-t{margin:22px 0 8px;color:var(--phos-dim);font-size:12px;letter-spacing:1px;border-bottom:1px dashed var(--phos-faint);padding-bottom:4px}
-  .plot{font-size:14px;line-height:1.55}
-  .cast{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin-top:6px}
-  .actor{text-align:center;cursor:pointer}
-  .actor .ph{aspect-ratio:2/3;background:#060906 center/cover;border:1px solid var(--phos-faint);margin-bottom:5px}
-  .actor .ph .noimg{font-size:24px}
-  .actor .an{font-size:11px;font-weight:600;line-height:1.2}
-  .actor .ac{font-size:10px;color:var(--phos-dim);line-height:1.2;margin-top:2px}
+  .detail{
+    position:relative;max-width:960px;margin:32px auto;min-height:60vh;
+    background:var(--bg);border-radius:var(--r-sheet);overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.35);
+    animation:sheetIn .28s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes sheetIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
 
-  /* setup api key */
-  .setup{border:1px solid var(--amber);background:var(--bg2);padding:16px;margin-top:14px}
-  .setup h3{color:var(--amber);font-size:14px;margin-bottom:8px}
-  .setup p{font-size:13px;color:var(--phos-dim);margin-bottom:8px}
-  .setup a{color:var(--phos)}
-  .setup input{border:1px solid var(--phos-faint);background:var(--bg);padding:9px 10px;margin:6px 0;width:100%}
-  .setup button{background:var(--phos-faint);border:0;color:var(--phos);font-family:var(--mono);padding:11px 16px;cursor:pointer;font-size:13px;min-height:44px}
-  .clearkey{color:var(--phos-dim);font-size:11px;cursor:pointer;text-decoration:underline;margin-left:8px}
+  .back{
+    position:absolute;top:16px;left:16px;z-index:3;
+    width:44px;height:44px;border-radius:50%;border:0;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(18,20,25,.6);color:#fff;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  }
+  .back:hover{background:rgba(18,20,25,.8)}
+
+  .hero{
+    position:relative;height:min(46vw,400px);min-height:220px;
+    background:var(--surface-2) center 25%/cover no-repeat;
+  }
+  .hero::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,transparent 35%,var(--bg) 100%);
+  }
+  .hero.plain{height:120px;min-height:0;background:var(--accent-soft)}
+
+  .dhead{
+    position:relative;z-index:2;display:flex;gap:28px;align-items:flex-end;
+    padding:0 32px;margin-top:-140px;
+  }
+  .hero.plain + .dhead{margin-top:-60px}
+  .dhead .poster{flex:0 0 200px;box-shadow:var(--shadow);border-radius:14px}
+  .dhead .poster.round{flex-basis:180px;aspect-ratio:1;border-radius:50%}
+  .dinfo{flex:1;min-width:0;padding-bottom:6px}
+  .dinfo h2{
+    font-family:var(--display);font-weight:800;letter-spacing:-.03em;
+    font-size:clamp(28px,4.4vw,46px);line-height:1.02;
+    text-wrap:balance;
+  }
+  .orig{color:var(--muted);font-size:14px;margin-top:6px}
+  .facts{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;font-size:15px;color:var(--muted)}
+  .facts b{color:var(--ink);font-weight:600}
+  .rating{display:inline-flex;align-items:center;gap:5px;color:var(--ink);font-weight:600}
+  .rating svg{color:var(--gold)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:13px;font-weight:500;padding:5px 12px;border-radius:999px}
+
+  .dbody{padding:28px 32px 40px}
+  .dbody h3{
+    font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.02em;
+    margin:30px 0 12px;
+  }
+  .dbody h3:first-child{margin-top:0}
+  .plot{font-size:16px;line-height:1.65;max-width:68ch}
+  .director{margin-top:14px;font-size:15px;color:var(--muted)}
+  .director b{color:var(--ink);font-weight:600}
+
+  /* cast: scorrimento orizzontale */
+  .cast{
+    display:grid;grid-auto-flow:column;grid-auto-columns:120px;gap:16px;
+    overflow-x:auto;padding:4px 32px 12px;margin:0 -32px;
+    scroll-snap-type:x proximity;scrollbar-width:thin;
+  }
+  .actor{
+    scroll-snap-align:start;background:none;border:0;padding:0;text-align:left;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:flex-start;
+  }
+  .actor .ph{
+    aspect-ratio:1;border-radius:50%;background:var(--surface-2) center 20%/cover no-repeat;
+    margin-bottom:8px;transition:transform .2s;
+  }
+  .actor:hover .ph{transform:scale(1.04)}
+  .actor .ph .noimg{font-size:26px}
+  .actor .an{font-size:14px;font-weight:600;line-height:1.25}
+  .actor .ac{font-size:13px;color:var(--muted);line-height:1.25;margin-top:2px}
+
+  .dbody .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:22px 14px}
 
   /* ===== PWA: install banner + update toast ===== */
   .install-bar{
-    position:fixed;left:0;right:0;bottom:0;z-index:60;
-    padding:10px 14px calc(10px + env(safe-area-inset-bottom)) 14px;
-    background:linear-gradient(transparent,var(--bg2) 30%);
-    display:none;
+    position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:60;
+    max-width:560px;margin:0 auto;
+    background:var(--surface);border-radius:18px;box-shadow:var(--shadow);
+    padding:14px 14px 14px 16px;display:none;
   }
-  .install-bar.show{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--phos-faint)}
-  .install-bar .msg{flex:1 1 200px;font-size:12px;color:var(--phos-dim);line-height:1.35}
-  .install-bar .msg b{color:var(--phos);text-shadow:0 0 6px var(--phos-dim)}
-  .install-bar button{
-    background:var(--phos-faint);border:1px solid var(--phos-dim);
-    color:var(--phos);font-family:var(--mono);font-size:12px;
-    padding:9px 14px;cursor:pointer;min-height:40px;letter-spacing:.5px;
+  .install-bar.show{display:flex;gap:12px;align-items:center;animation:sheetIn .3s ease}
+  .install-bar img{width:44px;height:44px;border-radius:11px;flex:0 0 44px}
+  .install-bar .msg{flex:1;font-size:14px;color:var(--muted);line-height:1.35}
+  .install-bar .msg b{color:var(--ink);display:block}
+  .install-bar .share{display:inline-block;width:16px;height:16px;vertical-align:-3px;color:var(--accent)}
+  .install-bar .btn{min-height:40px;padding:8px 16px;font-size:14px}
+  .install-bar .x{
+    background:none;border:0;color:var(--muted);cursor:pointer;
+    width:36px;height:36px;border-radius:50%;font-size:20px;line-height:1;
   }
-  .install-bar button.ghost{background:transparent;border-color:var(--phos-faint);color:var(--phos-dim)}
-  .install-bar .share{display:inline-block;width:14px;height:14px;vertical-align:-2px}
+  .install-bar .x:hover{background:var(--surface-2)}
 
   .update-toast{
     position:fixed;left:50%;transform:translateX(-50%);
-    top:calc(8px + env(safe-area-inset-top));z-index:70;
-    background:var(--bg2);border:1px solid var(--amber);color:var(--amber);
-    padding:8px 14px;font-size:12px;display:none;align-items:center;gap:10px;
-    box-shadow:0 0 14px rgba(255,180,84,.18);
+    top:calc(12px + env(safe-area-inset-top));z-index:70;
+    background:var(--ink);color:var(--bg);border-radius:999px;
+    padding:8px 8px 8px 18px;font-size:14px;display:none;align-items:center;gap:12px;
+    box-shadow:var(--shadow);white-space:nowrap;
   }
   .update-toast.show{display:flex}
-  .update-toast button{
-    background:transparent;border:1px solid var(--amber);color:var(--amber);
-    font-family:var(--mono);font-size:11px;padding:5px 10px;cursor:pointer;
-  }
+  .update-toast .btn{min-height:34px;padding:6px 14px;font-size:13px}
 
-  /* ===== mobile tuning ===== */
-  @media (max-width:480px){
-    body{font-size:14px}
-    h1{font-size:28px}
-    header{padding:12px 12px 8px}
-    main{padding:10px 12px 100px}
-    .searchbar{gap:6px}
+  /* ===== mobile ===== */
+  @media (max-width:640px){
+    .hwrap{padding:14px 16px 12px}
+    .sub{display:none}
+    .searchbar{gap:8px}
     .field{flex-basis:100%}
-    .toggle{flex:1 1 100%}
-    .toggle button{flex:1;padding:11px 12px;font-size:13px;min-height:42px}
-    input{font-size:16px;padding:12px 0}             /* >=16px evita zoom iOS */
-    .grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
-    .card .t{font-size:12px}
-    .clearkey{display:block;margin:6px 0 0 0}
-    .dhead .poster{flex:0 0 140px;max-width:140px}
-    .dinfo h2{font-size:24px}
-    .back{padding:10px 16px;min-height:42px}
+    .toggle{flex:1 1 auto}
+    .toggle button{flex:1}
+    main{padding:4px 16px 110px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:20px 12px}
+    .card .t{font-size:14px}
+    .card .y{font-size:12px}
+    .detail{margin:0;border-radius:0;min-height:100%}
+    .back{top:calc(12px + env(safe-area-inset-top));left:12px}
+    .hero{height:56vw;min-height:200px}
+    .dhead{flex-direction:column;align-items:flex-start;gap:16px;padding:0 16px;margin-top:-110px}
+    .dhead .poster{flex:none;width:130px}
+    .dhead .poster.round{width:130px}
+    .dbody{padding:20px 16px 60px}
+    .cast{padding:4px 16px 12px;margin:0 -16px;grid-auto-columns:100px}
+    .dbody .grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+    .setup{margin-top:16px;padding:22px}
   }
 
-  /* tocco più piacevole */
-  button, .card, .actor, .back{ -webkit-tap-highlight-color:rgba(72,255,152,.15) }
-  .card{touch-action:manipulation}
-
-  /* standalone mode (PWA installata): nascondi qualche fronzolo */
-  @media (display-mode:standalone){
-    .sub::after{content:" · installed";color:var(--phos-dim)}
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
   }
 </style>
 </head>
 <body>
 <div id="app">
-<header>
-  <h1>CINETECA<span class="cursor">_</span></h1>
-  <div class="sub">consultazione catalogo // fonte dati: TMDb</div>
-
-  <div id="setup" class="setup" style="display:none">
-    <h3>► configurazione iniziale</h3>
-    <p>Serve una API key TMDb (gratuita). Registrati su
-       <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>,
-       copia la chiave "API Key (v3 auth)" e incollala qui. Resta salvata solo sul tuo dispositivo.</p>
-    <input id="keyInput" type="text" placeholder="incolla la tua API key v3 qui...">
-    <div><button id="saveKey">SALVA E AVVIA</button></div>
-  </div>
-
-  <div id="bar" class="searchbar" style="display:none">
-    <div class="field">
-      <span class="ps">&gt;</span>
-      <input id="q" type="search" placeholder="cerca..." autocomplete="off">
+<header id="top">
+  <div class="hwrap">
+    <div class="brand">
+      <h1>Cineteca</h1>
+      <span class="sub">Dati da TMDb</span>
     </div>
-    <div class="toggle">
-      <button id="mFilm" class="on">TITOLO</button>
-      <button id="mActor">ATTORE</button>
+
+    <div id="bar" class="searchbar" style="display:none">
+      <label class="field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Cerca un film per titolo" autocomplete="off" enterkeyhint="search" aria-label="Cerca">
+      </label>
+      <div class="toggle" role="group" aria-label="Tipo di ricerca">
+        <button id="mFilm" class="on" type="button" aria-pressed="true">Film</button>
+        <button id="mActor" type="button" aria-pressed="false">Attori</button>
+      </div>
+      <button id="clearKey" class="clearkey" type="button">Cambia API key</button>
     </div>
-    <span id="clearKey" class="clearkey" title="rimuovi API key">[reset key]</span>
   </div>
 </header>
 
 <main>
-  <div id="status" class="status"></div>
+  <section id="setup" class="setup" style="display:none" aria-labelledby="setupTitle">
+    <h2 id="setupTitle">Collega il tuo account TMDb</h2>
+    <p>Per cercare film serve una API key gratuita di TMDb. Creala su
+      <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>
+      e copia il valore “API Key (v3 auth)”. La chiave resta salvata solo su questo dispositivo.</p>
+    <label for="keyInput">API key v3</label>
+    <input id="keyInput" type="text" placeholder="Incolla qui la chiave" autocomplete="off" spellcheck="false">
+    <button id="saveKey" class="btn" type="button">Salva e inizia</button>
+  </section>
+
+  <div id="status" class="status" aria-live="polite"></div>
   <div id="grid" class="grid"></div>
 </main>
 
-<div id="overlay" class="overlay"><div id="detail" class="detail"></div></div>
+<div id="overlay" class="overlay" role="dialog" aria-modal="true" aria-label="Scheda"><div id="detail" class="detail"></div></div>
 
 <!-- ===== PWA: banner installazione ===== -->
 <div id="installBar" class="install-bar" role="dialog" aria-label="Installa Cineteca">
+  <img src="icons/icon-192.png" alt="">
   <div class="msg" id="installMsg"></div>
-  <button id="installBtn" type="button">► INSTALLA</button>
-  <button id="installDismiss" class="ghost" type="button">×</button>
+  <button id="installBtn" class="btn" type="button">Installa</button>
+  <button id="installDismiss" class="x" type="button" aria-label="Chiudi">×</button>
 </div>
 
 <!-- ===== PWA: nuova versione disponibile ===== -->
 <div id="updateToast" class="update-toast" role="status" aria-live="polite">
-  <span>nuova versione disponibile</span>
-  <button id="updateBtn" type="button">AGGIORNA</button>
+  <span>È disponibile una nuova versione</span>
+  <button id="updateBtn" class="btn" type="button">Aggiorna</button>
 </div>
 </div>
 
@@ -261,10 +416,14 @@ const KEY_LS="tmdb_key";
 let apiKey=localStorage.getItem(KEY_LS)||"";
 let mode="film";          // 'film' | 'actor'
 let debounce=null;
+let searchSeq=0;
 
 const $=id=>document.getElementById(id);
 const setup=$("setup"),bar=$("bar"),status=$("status"),grid=$("grid"),
       overlay=$("overlay"),detail=$("detail");
+
+const ICON_STAR='<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z"/></svg>';
+const ICON_BACK='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 
 /* ---------- API ---------- */
 async function api(path,params={}){
@@ -273,141 +432,188 @@ async function api(path,params={}){
   u.searchParams.set("language","it-IT");
   Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
   const r=await fetch(u);
-  if(!r.ok) throw new Error("HTTP "+r.status+(r.status===401?" — API key non valida":""));
+  if(!r.ok) throw new Error(r.status===401?"API key non valida. Usa “Cambia API key” per inserirne una nuova.":"Il server TMDb ha risposto con errore "+r.status+".");
   return r.json();
 }
 
 /* ---------- ricerca ---------- */
+function skeleton(n=12){
+  grid.innerHTML=Array.from({length:n},()=>
+    '<div class="card sk" aria-hidden="true"><div class="poster"></div><div><div class="line"></div><div class="line short"></div></div></div>').join("");
+}
+
 async function search(term){
   term=term.trim();
-  grid.innerHTML="";
-  if(!term){status.textContent="";return;}
-  status.innerHTML="ricerca in corso...";
+  const seq=++searchSeq;
+  if(!term){loadTrending();return;}
+  status.textContent="";
+  skeleton();
   try{
     if(mode==="film"){
       const d=await api("search/movie",{query:term,include_adult:false});
-      renderFilms(d.results||[]);
+      if(seq===searchSeq) renderFilms(d.results||[]);
     }else{
       const d=await api("search/person",{query:term,include_adult:false});
-      renderActors(d.results||[]);
+      if(seq===searchSeq) renderActors(d.results||[]);
     }
   }catch(e){
-    status.innerHTML='<span class="err">errore: '+e.message+'</span>';
+    if(seq!==searchSeq) return;
+    grid.innerHTML="";
+    status.innerHTML='<span class="err">'+esc(e.message)+'</span>';
   }
 }
 
+async function loadTrending(){
+  const seq=++searchSeq;
+  status.innerHTML='<h2 class="heading">In tendenza questa settimana</h2>';
+  skeleton();
+  try{
+    const d=await api("trending/movie/week");
+    if(seq!==searchSeq) return;
+    grid.innerHTML="";
+    (d.results||[]).forEach(m=>grid.appendChild(filmCard(m)));
+  }catch(e){
+    if(seq!==searchSeq) return;
+    grid.innerHTML="";
+    status.innerHTML='<span class="err">'+esc(e.message)+'</span>';
+  }
+}
+
+function filmCardHTML(m){
+  const yr=m.release_date?m.release_date.slice(0,4):"Data n.d.";
+  const vote=m.vote_average?`<span class="badge">${ICON_STAR}${m.vote_average.toFixed(1)}</span>`:"";
+  return `
+    <div class="poster" ${m.poster_path?`style="background-image:url(${IMG}w342${m.poster_path})"`:""}>
+      ${m.poster_path?"":`<div class="noimg">${esc(m.title)}</div>`}${vote}
+    </div>
+    <div><div class="t">${esc(m.title)}</div><div class="y">${yr}</div></div>`;
+}
+function filmCard(m){
+  const card=document.createElement("button");
+  card.type="button";card.className="card";
+  card.innerHTML=filmCardHTML(m);
+  card.onclick=()=>openFilm(m.id);
+  return card;
+}
+
 function renderFilms(list){
-  if(!list.length){status.textContent="nessun risultato.";return;}
-  status.textContent=list.length+" risultati";
   grid.innerHTML="";
-  list.forEach(m=>{
-    const yr=m.release_date?m.release_date.slice(0,4):"—";
-    const card=document.createElement("div");
-    card.className="card";
-    card.innerHTML=`
-      <div class="poster" ${m.poster_path?`style="background-image:url(${IMG}w342${m.poster_path})"`:""}>
-        ${m.poster_path?"":'<div class="noimg">[ no locandina ]</div>'}
-      </div>
-      <div class="meta"><div class="t">${esc(m.title)}</div><div class="y">${yr}</div></div>`;
-    card.onclick=()=>openFilm(m.id);
-    grid.appendChild(card);
-  });
+  if(!list.length){status.textContent="Nessun film trovato. Prova con il titolo originale o con meno parole.";return;}
+  status.textContent=list.length===1?"1 film trovato":list.length+" film trovati";
+  list.forEach(m=>grid.appendChild(filmCard(m)));
 }
 
 function renderActors(list){
-  list=list.filter(p=>p.known_for_department==="Acting");
-  if(!list.length){status.textContent="nessun attore trovato.";return;}
-  status.textContent=list.length+" persone — tocca per vedere la filmografia";
   grid.innerHTML="";
+  list=list.filter(p=>p.known_for_department==="Acting");
+  if(!list.length){status.textContent="Nessun attore trovato. Controlla l'ortografia del nome.";return;}
+  status.textContent=(list.length===1?"1 persona":list.length+" persone")+". Apri una scheda per vedere la filmografia.";
   list.forEach(p=>{
     const known=(p.known_for||[]).map(k=>k.title||k.name).filter(Boolean).slice(0,2).join(", ");
-    const card=document.createElement("div");
-    card.className="card";
+    const card=document.createElement("button");
+    card.type="button";card.className="card";
     card.innerHTML=`
       <div class="poster" ${p.profile_path?`style="background-image:url(${IMG}w342${p.profile_path})"`:""}>
-        ${p.profile_path?"":'<div class="noimg">[ no foto ]</div>'}
+        ${p.profile_path?"":`<div class="noimg">${esc(initials(p.name))}</div>`}
       </div>
-      <div class="meta"><div class="t">${esc(p.name)}</div><div class="y">${esc(known||"attore/attrice")}</div></div>`;
+      <div><div class="t">${esc(p.name)}</div><div class="y">${esc(known||"Attore/attrice")}</div></div>`;
     card.onclick=()=>openActor(p.id,p.name);
     grid.appendChild(card);
   });
 }
 
 /* ---------- dettaglio film ---------- */
+const backBtn='<button class="back" type="button" onclick="closeOverlay()" aria-label="Chiudi scheda">'+ICON_BACK+'</button>';
+const loadingHTML=backBtn+'<div class="hero plain"></div><div class="dbody"><div class="status">Caricamento…</div></div>';
+const errorHTML=msg=>backBtn+'<div class="hero plain"></div><div class="dbody"><div class="status"><span class="err">'+esc(msg)+'</span></div></div>';
+
 async function openFilm(id){
-  showOverlay('<div class="status">caricamento scheda...</div>');
+  showOverlay(loadingHTML);
   try{
     const m=await api("movie/"+id,{append_to_response:"credits"});
-    const yr=m.release_date?m.release_date.slice(0,4):"—";
-    const reg=(m.credits.crew||[]).filter(c=>c.job==="Director").map(c=>c.name).join(", ")||"—";
-    const cast=(m.credits.cast||[]).slice(0,10);
+    const yr=m.release_date?m.release_date.slice(0,4):"";
+    const reg=(m.credits.crew||[]).filter(c=>c.job==="Director").map(c=>c.name).join(", ");
+    const cast=(m.credits.cast||[]).slice(0,15);
     let plot=m.overview;
     if(!plot){ // fallback inglese se la trama IT manca
       try{const en=await apiLang("movie/"+id,"en-US");plot=en.overview;}catch{}
     }
+    const facts=[
+      yr&&`<span><b>${yr}</b></span>`,
+      m.runtime&&`<span>${fmtRuntime(m.runtime)}</span>`,
+      m.vote_average&&`<span class="rating">${ICON_STAR}${m.vote_average.toFixed(1)}<span style="color:var(--muted);font-weight:400">/10</span></span>`
+    ].filter(Boolean).join("");
     detail.innerHTML=`
-      <button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
+      ${backBtn}
+      <div class="hero${m.backdrop_path?"":" plain"}" ${m.backdrop_path?`style="background-image:url(${IMG}w1280${m.backdrop_path})"`:""}></div>
       <div class="dhead">
-        <div class="poster" ${m.poster_path?`style="background-image:url(${IMG}w500${m.poster_path})"`:""}></div>
+        <div class="poster" ${m.poster_path?`style="background-image:url(${IMG}w500${m.poster_path})"`:""}>
+          ${m.poster_path?"":`<div class="noimg">${esc(m.title)}</div>`}
+        </div>
         <div class="dinfo">
           <h2>${esc(m.title)}</h2>
-          ${m.original_title&&m.original_title!==m.title?`<div class="orig">tit. orig.: ${esc(m.original_title)}</div>`:'<div class="orig"></div>'}
-          <div class="row"><span class="k">anno</span><span class="v">${yr}</span></div>
-          <div class="row"><span class="k">regia</span><span class="v reg">${esc(reg)}</span></div>
-          ${m.runtime?`<div class="row"><span class="k">durata</span><span class="v">${m.runtime} min</span></div>`:""}
-          ${m.genres&&m.genres.length?`<div class="row"><span class="k">genere</span><span class="v">${m.genres.map(g=>esc(g.name)).join(", ")}</span></div>`:""}
-          ${m.vote_average?`<div class="row"><span class="k">voto</span><span class="v">${m.vote_average.toFixed(1)}/10</span></div>`:""}
+          ${m.original_title&&m.original_title!==m.title?`<div class="orig">Titolo originale: ${esc(m.original_title)}</div>`:""}
+          ${facts?`<div class="facts">${facts}</div>`:""}
+          ${m.genres&&m.genres.length?`<div class="chips">${m.genres.map(g=>`<span class="chip">${esc(g.name)}</span>`).join("")}</div>`:""}
         </div>
       </div>
-      <div class="section-t">// TRAMA</div>
-      <div class="plot">${esc(plot||"Trama non disponibile.")}</div>
-      <div class="section-t">// CAST PRINCIPALE</div>
-      <div class="cast">${cast.map(a=>`
-        <div class="actor" onclick="openActor(${a.id},'${escAttr(a.name)}')">
-          <div class="ph" ${a.profile_path?`style="background-image:url(${IMG}w185${a.profile_path})"`:""}>
-            ${a.profile_path?"":'<div class="noimg">☻</div>'}
-          </div>
-          <div class="an">${esc(a.name)}</div>
-          <div class="ac">${esc(a.character||"")}</div>
-        </div>`).join("")||"—"}</div>`;
+      <div class="dbody">
+        <h3>Trama</h3>
+        <p class="plot">${esc(plot||"Trama non disponibile.")}</p>
+        ${reg?`<p class="director">Regia di <b>${esc(reg)}</b></p>`:""}
+        ${cast.length?`<h3>Cast principale</h3>
+        <div class="cast">${cast.map(a=>`
+          <button class="actor" type="button" onclick="openActor(${a.id},'${escAttr(a.name)}')">
+            <div class="ph" ${a.profile_path?`style="background-image:url(${IMG}w185${a.profile_path})"`:""}>
+              ${a.profile_path?"":`<div class="noimg">${esc(initials(a.name))}</div>`}
+            </div>
+            <div class="an">${esc(a.name)}</div>
+            <div class="ac">${esc(a.character||"")}</div>
+          </button>`).join("")}</div>`:""}
+      </div>`;
+    focusBack();
   }catch(e){
-    detail.innerHTML=`<button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
-      <div class="status"><span class="err">errore: ${e.message}</span></div>`;
+    detail.innerHTML=errorHTML(e.message);focusBack();
   }
 }
 
 /* ---------- dettaglio attore (filmografia) ---------- */
 async function openActor(id,name){
-  showOverlay('<div class="status">caricamento filmografia...</div>');
+  showOverlay(loadingHTML);
   try{
     const p=await api("person/"+id,{append_to_response:"movie_credits"});
     const films=(p.movie_credits.cast||[])
       .filter(f=>f.poster_path||f.release_date)
       .sort((a,b)=>(b.release_date||"").localeCompare(a.release_date||""));
+    // backdrop: il film più popolare in cui ha recitato
+    const top=[...films].filter(f=>f.backdrop_path).sort((a,b)=>(b.popularity||0)-(a.popularity||0))[0];
+    let bio=p.biography;
+    if(!bio){try{const en=await apiLang("person/"+id,"en-US");bio=en.biography;}catch{}}
+    const facts=[
+      p.birthday&&`<span>Nato/a il <b>${fmtDate(p.birthday)}</b>${p.place_of_birth?" a "+esc(p.place_of_birth):""}</span>`,
+      `<span><b>${films.length}</b> film</span>`
+    ].filter(Boolean).join("");
     detail.innerHTML=`
-      <button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
+      ${backBtn}
+      <div class="hero${top?"":" plain"}" ${top?`style="background-image:url(${IMG}w1280${top.backdrop_path})"`:""}></div>
       <div class="dhead">
-        <div class="poster" ${p.profile_path?`style="background-image:url(${IMG}w500${p.profile_path})"`:""}></div>
+        <div class="poster round" ${p.profile_path?`style="background-image:url(${IMG}w500${p.profile_path})"`:""}>
+          ${p.profile_path?"":`<div class="noimg">${esc(initials(p.name||name))}</div>`}
+        </div>
         <div class="dinfo">
           <h2>${esc(p.name||name)}</h2>
-          <div class="orig"></div>
-          ${p.birthday?`<div class="row"><span class="k">nato/a</span><span class="v">${p.birthday}${p.place_of_birth?" · "+esc(p.place_of_birth):""}</span></div>`:""}
-          <div class="row"><span class="k">film</span><span class="v">${films.length}</span></div>
-          ${p.biography?`<div class="section-t">// BIOGRAFIA</div><div class="plot">${esc(p.biography.slice(0,600))}${p.biography.length>600?"…":""}</div>`:""}
+          <div class="facts">${facts}</div>
         </div>
       </div>
-      <div class="section-t">// FILMOGRAFIA</div>
-      <div class="grid">${films.map(f=>{
-        const yr=f.release_date?f.release_date.slice(0,4):"—";
-        return `<div class="card" onclick="openFilm(${f.id})">
-          <div class="poster" ${f.poster_path?`style="background-image:url(${IMG}w342${f.poster_path})"`:""}>
-            ${f.poster_path?"":'<div class="noimg">[ no locandina ]</div>'}
-          </div>
-          <div class="meta"><div class="t">${esc(f.title)}</div><div class="y">${yr}</div></div>
-        </div>`;}).join("")}</div>`;
+      <div class="dbody">
+        ${bio?`<h3>Biografia</h3><p class="plot">${esc(bio.slice(0,700))}${bio.length>700?"…":""}</p>`:""}
+        <h3>Filmografia</h3>
+        <div class="grid">${films.map(f=>`
+          <button class="card" type="button" onclick="openFilm(${f.id})">${filmCardHTML(f)}</button>`).join("")}</div>
+      </div>`;
+    focusBack();
   }catch(e){
-    detail.innerHTML=`<button class="back" onclick="closeOverlay()">&lt; INDIETRO</button>
-      <div class="status"><span class="err">errore: ${e.message}</span></div>`;
+    detail.innerHTML=errorHTML(e.message);focusBack();
   }
 }
 
@@ -419,35 +625,59 @@ async function apiLang(path,lang){
 }
 
 /* ---------- overlay helpers ---------- */
-function showOverlay(html){detail.innerHTML=html;overlay.classList.add("open");overlay.scrollTop=0;}
-function closeOverlay(){overlay.classList.remove("open");}
+let lastFocus=null;
+function showOverlay(html){
+  if(!overlay.classList.contains("open")) lastFocus=document.activeElement;
+  detail.innerHTML=html;overlay.classList.add("open");overlay.scrollTop=0;
+  document.body.classList.add("locked");
+  detail.style.animation="none";void detail.offsetWidth;detail.style.animation="";
+}
+function closeOverlay(){
+  overlay.classList.remove("open");document.body.classList.remove("locked");
+  if(lastFocus&&lastFocus.focus) lastFocus.focus();
+}
+function focusBack(){const b=detail.querySelector(".back");if(b)b.focus({preventScroll:true});}
 window.openFilm=openFilm;window.openActor=openActor;window.closeOverlay=closeOverlay;
 
 /* ---------- util ---------- */
 function esc(s){return(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function escAttr(s){return esc(s).replace(/'/g,"\\&#39;");}
+function initials(n){return(n||"?").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join("");}
+function fmtRuntime(min){const h=Math.floor(min/60),m=min%60;return h?`${h} h ${m?m+" min":""}`.trim():`${m} min`;}
+function fmtDate(d){try{return new Date(d+"T00:00:00").toLocaleDateString("it-IT",{day:"numeric",month:"long",year:"numeric"});}catch{return d;}}
 
 /* ---------- setup / chiave ---------- */
-function showApp(){setup.style.display="none";bar.style.display="flex";$("q").focus();}
-function showSetup(){setup.style.display="block";bar.style.display="none";}
+function showApp(){setup.style.display="none";bar.style.display="flex";loadTrending();}
+function showSetup(){setup.style.display="block";bar.style.display="none";grid.innerHTML="";status.textContent="";$("keyInput").focus();}
 
 $("saveKey").onclick=()=>{
   const k=$("keyInput").value.trim();
-  if(!k){return;}
+  if(!k){$("keyInput").focus();return;}
   apiKey=k;localStorage.setItem(KEY_LS,k);showApp();
 };
+$("keyInput").addEventListener("keydown",e=>{if(e.key==="Enter")$("saveKey").click();});
 $("clearKey").onclick=()=>{
-  localStorage.removeItem(KEY_LS);apiKey="";grid.innerHTML="";status.textContent="";
+  localStorage.removeItem(KEY_LS);apiKey="";
   $("q").value="";showSetup();
 };
 
 /* mode toggle */
-$("mFilm").onclick=()=>{mode="film";$("mFilm").classList.add("on");$("mActor").classList.remove("on");
-  $("q").placeholder="cerca per titolo (IT o EN)...";if($("q").value)search($("q").value);};
-$("mActor").onclick=()=>{mode="actor";$("mActor").classList.add("on");$("mFilm").classList.remove("on");
-  $("q").placeholder="cerca per nome attore...";if($("q").value)search($("q").value);};
+function setMode(m){
+  mode=m;
+  $("mFilm").classList.toggle("on",m==="film");$("mFilm").setAttribute("aria-pressed",m==="film");
+  $("mActor").classList.toggle("on",m==="actor");$("mActor").setAttribute("aria-pressed",m==="actor");
+  $("q").placeholder=m==="film"?"Cerca un film per titolo":"Cerca un attore per nome";
+  if($("q").value) search($("q").value);
+  $("q").focus();
+}
+$("mFilm").onclick=()=>setMode("film");
+$("mActor").onclick=()=>setMode("actor");
 
 $("q").addEventListener("input",e=>{clearTimeout(debounce);debounce=setTimeout(()=>search(e.target.value),350);});
+
+/* header: bordo quando si scorre */
+const topEl=$("top");
+window.addEventListener("scroll",()=>topEl.classList.toggle("scrolled",window.scrollY>4),{passive:true});
 
 /* ---------- PWA: registrazione service worker + install/update UX ---------- */
 (function(){
@@ -485,7 +715,6 @@ $("q").addEventListener("input",e=>{clearTimeout(debounce);debounce=setTimeout((
         if (!nw) return;
         nw.addEventListener("statechange", () => {
           if (nw.state === "installed" && navigator.serviceWorker.controller) {
-            // c'è una nuova versione pronta
             updateToast.classList.add("show");
             updateBtn.onclick = () => nw.postMessage({ type: "SKIP_WAITING" });
           }
@@ -502,17 +731,16 @@ $("q").addEventListener("input",e=>{clearTimeout(debounce);debounce=setTimeout((
   }
   function showAndroidInstall() {
     installMsg.innerHTML =
-      '<b>Installa Cineteca</b><br>aggiungi alla schermata Home per un\'esperienza full-screen, offline-ready.';
+      '<b>Installa Cineteca</b>Aggiungila alla schermata Home e aprila come un\'app.';
     installBtn.style.display = "";
     installBar.classList.add("show");
   }
   function showIOSInstall() {
     installMsg.innerHTML =
-      '<b>Installa su iPhone/iPad</b><br>tocca <span class="share">' +
-      // SVG icona "condividi" iOS
+      '<b>Installa su iPhone o iPad</b>Tocca <span class="share">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M12 16V4"/><path d="M8 8l4-4 4 4"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>' +
-      '</span> e poi <b>"Aggiungi a Home"</b>.';
+      '</span> e poi “Aggiungi alla schermata Home”.';
     installBtn.style.display = "none";
     installBar.classList.add("show");
   }
@@ -543,13 +771,13 @@ $("q").addEventListener("input",e=>{clearTimeout(debounce);debounce=setTimeout((
 
   /* iOS: nessun beforeinstallprompt, mostriamo l'hint manuale */
   if (isIOS && !isStandalone() && !dismissed()) {
-    // attendi un attimo per non sovrapporsi al setup iniziale della chiave
     setTimeout(() => { if (!isStandalone()) showIOSInstall(); }, 1500);
   }
 })();
 
 /* ---------- start ---------- */
 overlay.addEventListener("click",e=>{if(e.target===overlay)closeOverlay();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&overlay.classList.contains("open"))closeOverlay();});
 if(apiKey) showApp(); else showSetup();
 </script>
 </body>

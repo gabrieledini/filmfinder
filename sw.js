@@ -5,7 +5,7 @@
  *  - Immagini TMDb (image.tmdb.org)           → cache-first con cap LRU
  *  - API TMDb (api.themoviedb.org)            → network-only (dati sempre freschi)
  */
-const VERSION    = 'v2-2026-05-30';
+const VERSION    = 'v3-2026-11-20';
 const SHELL_CACHE  = `cineteca-shell-${VERSION}`;
 const FONTS_CACHE  = `cineteca-fonts-${VERSION}`;
 const IMG_CACHE    = `cineteca-img-${VERSION}`;
